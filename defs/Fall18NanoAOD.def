@@ -1,0 +1,452 @@
+<namespace pandanano>
+
+<branch_name>
+(parse)
+TString fullName(_str);
+int pos(fullName.Index("_"));
+if (pos == -1)
+  return std::pair<TString, TString>(fullName, "");
+else {
+  return std::pair<TString, TString>(fullName(0, pos), fullName(pos + 1, fullName.Length()));
+}
+(generate)
+if (_br.Length() == 0)
+  return _obj;
+else
+  return _obj + "_" + _br;
+<end branch_name>
+
+<size_branch_name>
+(parse)
+if (_str(0) != 'n')
+  return std::pair<TString, TString>();
+else
+  return std::pair<TString, TString>(_str(1, _str.Length()), "size");
+(generate)
+return "n" + _obj;
+<end size_branch_name>
+
+% INCLUDES
+
+#include "TLorentzVector.h"
+#include "TVector2.h"
+
+#include <cmath>
+
+% Event metadata
+
+[PBTagWeight:SINGLE]
+CSVV2/F
+DeepCSVB/F
+
+[PGenInfo:SINGLE]
+binvar/F
+scalePDF/F
+weight/F
+x1/F
+x2/F
+xpdf1/F
+xpdf2/F
+id1/I
+id2/I
+
+[PLHEInfo:SINGLE]
+HT/F
+HTIncoming/F
+Vpt/F
+Njets/b
+Nb/b
+Nc/b
+Nuds/b
+Nglu/b
+NpNLO/b
+NpLO/b
+
+[PLHEWeight:SINGLE]
+originalXWGTUP/F
+
+[PPileupInfo:SINGLE]
+nTrueInt/F
+nPU/I
+sumEOOT/I
+sumLOOT/I
+
+[PEventFilter:SINGLE]
+HBHENoiseFilter/O
+HBHENoiseIsoFilter/O
+CSCTightHaloFilter/O
+CSCTightHaloTrkMuUnvetoFilter/O
+CSCTightHalo2015Filter/O
+globalTightHalo2016Filter/O
+globalSuperTightHalo2016Filter/O
+HcalStripHaloFilter/O
+hcalLaserEventFilter/O
+EcalDeadCellTriggerPrimitiveFilter/O
+EcalDeadCellBoundaryEnergyFilter/O
+ecalBadCalibFilter/O
+goodVertices/O
+eeBadScFilter/O
+ecalLaserCorrFilter/O
+trkPOGFilters/O
+chargedHadronTrackResolutionFilter/O
+muonBadTrackFilter/O
+BadChargedCandidateFilter/O
+BadPFMuonFilter/O
+BadChargedCandidateSummer16Filter/O
+BadPFMuonSummer16Filter/O
+trkPOG_manystripclus53X/O
+trkPOG_toomanystripclus53X/O
+trkPOG_logErrorTooManyClusters/O
+METFilters/O
+
+% particle base class
+
+[PParticle]
+pt/F
+eta/F
+phi/F
+virtual TLorentzVector p4() const { TLorentzVector p4; p4.SetPtEtaPhiM(pt, eta, phi, 0.); return p4; }
+virtual double e() const { return p(); }
+double p() const { return pt * std::cosh(eta); }
+double px() const { return pt * std::cos(phi); }
+double py() const { return pt * std::sin(phi); }
+double pz() const { return pt * std::sinh(eta); }
+double dEta(PParticle const& p) const { return eta - p.eta; }
+double dPhi(PParticle const& p) const { return TVector2::Phi_mpi_pi(phi - p.phi); }
+double dR2(PParticle const& p) const { double d1(dEta(p)); double d2(dPhi(p)); return d1 * d1 + d2 * d2; }
+double dR(PParticle const& p) const { return std::sqrt(dR2(p)); }
+virtual void setPtEtaPhiM(double _pt, double _eta, double _phi, double)
+{
+  pt = _pt;
+  eta = _eta;
+  phi = _phi;
+}
+virtual void setXYZE(double px, double py, double pz, double)
+{
+  pt = std::sqrt(px * px + py * py);
+  double p(std::sqrt(px * px + py * py + pz * pz));
+  eta = 0.5 * std::log((p + pz) / (p - pz));
+  phi = std::atan2(py, px);
+}
+
+[PParticleM>PParticle]
+mass/F
+double e() const override { double momentum(p()); return std::sqrt(momentum * momentum + mass * mass); }
+void setPtEtaPhiM(double _pt, double _eta, double _phi, double _mass) override
+{
+  pt = _pt;
+  eta = _eta;
+  phi = _phi;
+  mass = _mass;
+}
+void setXYZE(double px, double py, double pz, double e) override
+{
+  pt = std::sqrt(px * px + py * py);
+  double p(std::sqrt(px * px + py * py + pz * pz));
+  eta = 0.5 * std::log((p + pz) / (p - pz));
+  phi = std::atan2(py, px);
+  mass = std::sqrt(e * e - p * p);
+}
+
+[PRecoParticle>PParticleM]
+charge/I
+jetIdx/I
+pdgId/I
+genPartIdx/I
+genPartFlav/b
+cleanmask/b
+
+% high-level non-particle objects
+
+[PMET:SINGLE]
+phi/F
+pt/F
+sumEt/F
+
+[PRecoMET>PMET]
+MetUnclustEnUpDeltaX/F
+MetUnclustEnUpDeltaY/F
+covXX/F
+covXY/F
+covYY/F
+significance/F
+fiducialGenPhi/F
+fiducialGenPt/F
+
+[PPrimaryVertex:SINGLE]
+ndof/F
+x/F
+y/F
+z/F
+chi2/F
+score/F
+npvs/I
+npvsGood/I
+
+[PVertex]
+z/F
+
+[PSecondaryVertex>PParticleM]
+dlen/F
+dlenSig/F
+pAngle/F
+chi2/F
+ndof/F
+x/F
+y/F
+z/F
+
+% generator-level particles
+
+[PTruthParticle>PParticleM]
+pdgId/I
+
+[PGenParticle>PTruthParticle]
+genPartIdxMother/I
+status/I
+statusFlags/I
+
+% jets
+
+[PRecoJet>PParticleM]
+btagCMVA/F
+btagCSVV2/F
+btagDeepB/F
+
+[PJet>PRecoJet]
+area/F
+btagDeepC/F
+btagDeepFlavB/F
+chEmEF/F
+chHEF/F
+muEF/F
+neEmEF/F
+neHEF/F
+qgl/F
+rawFactor/F
+bRegCorr/F
+bRegRes/F
+electronIdx1/I
+electronIdx2/I
+jetId/I
+muonIdx1/I
+muonIdx2/I
+nConstituents/I
+nElectrons/I
+nMuons/I
+puId/I
+genJetIdx/I
+hadronFlavour/I
+partonFlavour/I
+cleanmask/b
+
+[PSubstructuredJet>PRecoJet]
+n2b1/F
+n3b1/F
+tau1/F
+tau2/F
+tau3/F
+tau4/F
+
+[PFatJet>PSubstructuredJet]
+area/F
+btagHbb/F
+msoftdrop/F
+rawFactor/F
+jetId/I
+subJetIdx1/I
+subJetIdx2/I
+
+[PGenJet>PParticleM]
+partonFlavour/I
+hadronFlavour/b
+
+% leptons and photons
+
+[PLepton>PRecoParticle]
+dxy/F
+dxyErr/F
+dz/F
+dzErr/F
+ip3d/F
+miniPFRelIso_all/F
+miniPFRelIso_chg/F
+tightCharge/I
+isPFcand/O
+
+[PElectron>PLepton]
+deltaEtaSC/F
+dr03EcalRecHitSumEt/F
+dr03HcalDepth1TowerSumEt/F
+dr03TkSumPt/F
+eInvMinusPInv/F
+energyErr/F
+hoe/F
+pfRelIso03_all/F
+pfRelIso03_chg/F
+r9/F
+sieie/F
+sip3d/F
+mvaTTH/F
+cutBased/I
+cutBased_Fall17_V1/I
+photonIdx/I
+vidNestedWPBitmap/I
+convVeto/O
+cutBased_HEEP/O
+lostHits/b
+mvaFall17V1Iso/F
+mvaFall17V1noIso/F
+mvaFall17V2Iso/F
+mvaFall17V2noIso/F
+mvaFall17V1Iso_WP80/O
+mvaFall17V1Iso_WP90/O
+mvaFall17V1Iso_WPL/O
+mvaFall17V1noIso_WP80/O
+mvaFall17V1noIso_WP90/O
+mvaFall17V1noIso_WPL/O
+mvaFall17V2Iso_WP80/O
+mvaFall17V2Iso_WP90/O
+mvaFall17V2Iso_WPL/O
+mvaFall17V2noIso_WP80/O
+mvaFall17V2noIso_WP90/O
+mvaFall17V2noIso_WPL/O
+
+[PMuon>PLepton]
+pfRelIso03_all/F
+pfRelIso03_chg/F
+pfRelIso04_all/F
+ptErr/F
+segmentComp/F
+sip3d/F
+mvaTTH/F
+nStations/I
+nTrackerLayers/I
+highPtId/b
+mediumId/O
+softId/O
+tightId/O
+
+[PPhoton>PRecoParticle]
+energyErr/F
+hoe/F
+mvaID/F
+pfRelIso03_all/F
+pfRelIso03_chg/F
+r9/F
+sieie/F
+cutBasedBitmap/I
+electronIdx/I
+vidNestedWPBitmap/I
+electronVeto/O
+isScEtaEB/O
+isScEtaEE/O
+mvaID_WP80/O
+mvaID_WP90/O
+pixelSeed/O
+
+% taus
+
+[PTau>PRecoParticle]
+chargedIso/F
+dxy/F
+dz/F
+leadTkDeltaEta/F
+leadTkDeltaPhi/F
+leadTkPtOverTauPt/F
+neutralIso/F
+photonsOutsideSignalCone/F
+puCorr/F
+rawAntiEle/F
+rawIso/F
+rawIsodR03/F
+decayMode/I
+rawAntiEleCat/I
+idAntiEle/b
+idAntiMu/b
+idDecayMode/O
+idDecayModeNewDMs/O
+
+[PGenTau>PParticleM]
+charge/I
+genPartIdxMother/I
+status/I
+
+% misc
+
+[PIsoTrack>PParticle]
+dxy/F
+dz/F
+pfRelIso03_all/F
+pfRelIso03_chg/F
+miniPFRelIso_all/F
+miniPFRelIso_chg/F
+pdgId/I
+isHighPurityTrack/O
+isPFcand/O
+
+[PTriggerObject>PParticle]
+l1pt/F
+l1pt_2/F
+l2pt/F
+id/I
+l1iso/I
+l1charge/I
+filterBits/I
+
+{Event}
+run/i
+luminosityBlock/i
+event/l
+genWeight/F
+nLHEPdfWeight/i
+LHEPdfWeight/F
+nLHEScaleWeight/i
+LHEScaleWeight/F
+nPSWeight/i
+PSWeight/F
+fixedGridRhoFastjetAll/F
+fixedGridRhoFastjetCentralCalo/F
+fixedGridRhoFastjetCentralNeutral/F
+SoftActivityJetHT/F
+SoftActivityJetHT10/F
+SoftActivityJetHT2/F
+SoftActivityJetHT5/F
+SoftActivityJetNjets10/I
+SoftActivityJetNjets2/I
+SoftActivityJetNjets5/I
+genTtbarId/I
+L1simulation_step/O
+HLTriggerFirstPath/O
+L1Reco_step/O
+Generator/PGenInfo
+LHE/PLHEInfo
+LHEPart/PTruthParticleCollection
+btagWeight/PBTagWeight
+Electron/PElectronCollection
+FatJet/PFatJetCollection
+GenJet/PGenJetCollection
+GenJetAK8/PGenJetCollection
+GenPart/PGenParticleCollection
+SubGenJetAK8/PParticleMCollection
+GenVisTau/PGenTauCollection
+LHEWeight/PLHEWeight
+IsoTrack/PIsoTrackCollection
+Jet/PJetCollection
+Muon/PMuonCollection
+Photon/PPhotonCollection
+Pileup/PPileupInfo
+MET/PRecoMET
+PuppiMET/PMET
+CaloMET/PMET
+TkMET/PMET
+RawMET/PMET
+GenMET/PMET
+GenDressedLepton/PTruthParticleCollection
+SoftActivityJet/PParticleCollection
+SubJet/PSubstructuredJetCollection
+Tau/PTauCollection
+TrigObj/PTriggerObjectCollection
+OtherPV/PVertexCollection
+PV/PPrimaryVertex
+Flag/PEventFilter
